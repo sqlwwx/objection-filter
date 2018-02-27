@@ -1,0 +1,11 @@
+{
+  "name": "objection-filter",
+  "version": "0.1.0",
+  "dependencies": {
+    "lodash": {
+      "version": "4.17.5",
+      "from": "lodash@>=4.17.5 <5.0.0",
+      "resolved": "https://registry.npmjs.org/lodash/-/lodash-4.17.5.tgz"
+    }
+  }
+}
