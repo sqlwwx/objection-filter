@@ -51,10 +51,12 @@ module.exports = class FilterQueryBuilder {
       eager
     } = params;
 
+    applyCount(params, this._builder);
     applyFields(fields, this._builder);
     applyEager(eager, this._builder);
     applyWhere(params.where, this._builder, this.utils);
     applyRequire(params.require, this._builder, this.utils);
+    applyGroupBy(params, this._builder);
     applyOrder(order, this._builder);
     applyLimit(limit, offset, this._builder);
 
@@ -76,6 +78,25 @@ const applyEager = function(eager, builder) {
 };
 module.exports.applyEager = applyEager;
 
+const queryRequireFilter = (filter, queryBuilder, relationExpression, applyOperations, utils) => {
+  _.forEach(filter, (expression, property) => {
+    if (property === '$or') {
+      _.forEach(expression, (_filter, index) => {
+        const whereOrWhere = index === 0 ? 'where': 'orWhere'
+        queryBuilder[whereOrWhere](qb => {
+          queryRequireFilter(_filter, qb, relationExpression, applyOperations, utils)
+        })
+      })
+    }
+    const { propertyName, fullyQualifiedProperty } = sliceRelation(property);
+    if (relationExpression) {
+      applyOperations(fullyQualifiedProperty, expression, queryBuilder);
+    } else {
+      applyWhere({[propertyName]: expression}, queryBuilder, utils);
+    }
+  })
+}
+
 /**
  * Apply an entire require expression to the query builder
  * e.g. { "prop1": { "$like": "A" }, "prop2": { "$in": [1] } }
@@ -96,29 +117,20 @@ const applyRequire = function(filter = {}, builder, utils = {}) {
     .query()
     .distinct(idColumn);
 
+  const orKeys = (filter['$or'] || []).reduce((keys, where) => keys.concat(Object.keys(where)), [])
   // Do all the joins at once
-  const relationExpression = createRelationExpression(Object.keys(filter));
+  const relationExpression = createRelationExpression(
+    [...new Set(Object.keys(filter).concat(orKeys))]
+  );
   filterQuery.joinRelation(relationExpression);
 
+  const queryBuilder = relationExpression ? filterQuery : builder
+
   // For each property, filter it assuming the expression is an AND
-  let relatedPropertyCount = 0;
-  _.forEach(filter, (andExpression, property) => {
-    const {
-      relationName,
-      propertyName,
-      fullyQualifiedProperty
-    } = sliceRelation(property);
-
-    // Without a relation, a "require" is equivalent to a "where" on the root model
-    if (!relationName)
-      return applyWhere({[propertyName]: andExpression}, builder, utils);
-
-    relatedPropertyCount++;
-    applyOperations(fullyQualifiedProperty, andExpression, filterQuery);
-  });
+  queryRequireFilter(filter, queryBuilder, relationExpression, applyOperations, utils)
 
   // If there weren't any related properties, don't bother joining
-  if (relatedPropertyCount === 0) return builder;
+  if (!relationExpression) return builder;
 
   const filterQueryAlias = 'filter_query';
   builder.innerJoin(
@@ -134,6 +146,21 @@ const applyRequire = function(filter = {}, builder, utils = {}) {
 };
 module.exports.applyRequire = applyRequire;
 
+const queryWhereFilter = (property, andExpression, Model, applyOperations, builder) => {
+  const { relationName, propertyName } = sliceRelation(property);
+  if (relationName) {
+    // Eager query fields should include the eager model table name
+    builder.modifyEager(relationName, eagerBuilder => {
+      const fullyQualifiedProperty = `${eagerBuilder._modelClass.tableName}.${propertyName}`;
+      applyOperations(fullyQualifiedProperty, andExpression, eagerBuilder);
+    });
+    return
+  }
+  // Root level where should include the root table name
+  const fullyQualifiedProperty = `${Model.tableName}.${propertyName}`;
+  return applyOperations(fullyQualifiedProperty, andExpression, builder);
+}
+
 /**
  * Apply an entire where expression to the query builder
  * e.g. { "prop1": { "$like": "A" }, "prop2": { "$in": [1] } }
@@ -148,19 +175,7 @@ const applyWhere = function(filter = {}, builder, utils = {}) {
   const Model = builder._modelClass;
 
   _.forEach(filter, (andExpression, property) => {
-    const { relationName, propertyName } = sliceRelation(property);
-
-    if (!relationName) {
-      // Root level where should include the root table name
-      const fullyQualifiedProperty = `${Model.tableName}.${propertyName}`;
-      return applyOperations(fullyQualifiedProperty, andExpression, builder);
-    }
-
-    // Eager query fields should include the eager model table name
-    builder.modifyEager(relationName, eagerBuilder => {
-      const fullyQualifiedProperty = `${eagerBuilder._modelClass.tableName}.${propertyName}`;
-      applyOperations(fullyQualifiedProperty, andExpression, eagerBuilder);
-    });
+    queryWhereFilter(property, andExpression, Model, applyOperations, builder)
   });
 
   return builder;
@@ -215,6 +230,20 @@ const selectFields = (fields = [], builder, relationName) => {
   });
 };
 
+const applyGroupBy = ({ groupBy }, builder) => {
+  if (groupBy) {
+    const fields = Array.isArray(groupBy) ? groupBy : groupBy.split(',')
+    // builder.select(fields)
+    builder.groupBy(fields)
+  }
+}
+
+const applyCount = ({ count }, builder) => {
+  if (count) {
+    count = typeof count === 'string' ? count.split(',') : count
+    count.forEach((c) => builder.count(c))
+  }
+}
 
 /**
  * Select a limited set of fields. Use dot notation to limit eagerly loaded models.
