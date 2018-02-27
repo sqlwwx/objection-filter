@@ -267,7 +267,7 @@ describe('basic filters', function () {
             })
             .catch(err => {
               err.statusCode.should.equal(400);
-              Object.keys(err.data).should.deep.equal(['eager']);
+              err.type.should.equal('UnallowedRelation')
               done();
             });
         });
