@@ -333,6 +333,71 @@ describe('complex filters', function () {
             .catch(done);
         });
 
+        it('should search root model using `require $or` and operand values', done => {
+          buildFilter(Person)
+            .build({
+              eager: 'movies',
+              require: {
+                '$or': [{
+                  'movies.name': 'M99'
+                }, {
+                  'movies.name': 'M89'
+                }]
+              }
+            })
+            .then(result => {
+              result.map(item => item.firstName).should.deep.equal([
+                'F01', 'F00'
+              ]);
+              done();
+            })
+            .catch(done);
+        });
+
+        it('should search root model using `require $or` and operand values', done => {
+          buildFilter(Person)
+            .build({
+              eager: 'movies',
+              require: {
+                '$or': [{
+                  'firstName': 'F00',
+                  lastName: 'L09'
+                }, {
+                  'movies.name': 'M89'
+                }]
+              }
+            })
+            .then(result => {
+              result.map(item => item.firstName).should.deep.equal([
+                'F00', 'F01'
+              ]);
+              done();
+            })
+            .catch(done);
+        });
+
+        it('should search root model using `require $or` and operand values', done => {
+          buildFilter(Person)
+            .build({
+              eager: 'movies',
+              require: {
+                '$or': [{
+                  'firstName': 'F00',
+                  lastName: 'L09'
+                }, {
+                  'movies.name': 'M89'
+                }]
+              }
+            })
+            .then(result => {
+              result.map(item => item.firstName).should.deep.equal([
+                'F00', 'F01'
+              ]);
+              done();
+            })
+            .catch(done);
+        });
+
         it('should search root model using `require $or` and no values', done => {
           buildFilter(Person)
             .build({
@@ -352,6 +417,21 @@ describe('complex filters', function () {
             .catch(done);
         });
       });
+
+      describe('groupBy', () => {
+        it('should success', (done) => {
+          buildFilter(Person).build({
+            where: {
+              firstName: { $in: 'F01,F02,F05' }
+            },
+            count: 'id as sum',
+            groupBy: 'firstName,age'
+          }).then((result) => {
+            result.length.should.equal(3);
+            done();
+          })
+        })
+      })
 
       describe('filter combinations', function() {
         it('should `require` and `where` on the same relation', done => {

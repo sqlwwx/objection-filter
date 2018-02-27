@@ -13,7 +13,7 @@ const sliceRelation = (relatedProperty, delimiter = '.') => {
 
   // Nested relations need to be in the format a:b:c.name
   // https://github.com/Vincit/objection.js/issues/363
-  const fullyQualifiedProperty = `${relationName.replace(/\./g, ':')}.${propertyName}`;
+  const fullyQualifiedProperty = `${relationName.replace(/\./g, ':')}${ relationName ? '.' : ''}${propertyName}`;
 
   return { propertyName, relationName, fullyQualifiedProperty };
 };
@@ -54,7 +54,7 @@ module.exports.Operations = function(options = {}) {
     '=': (property, operand, builder) => builder
       .where(property, operand),
     $in: (property, operand, builder) => builder
-      .where(property, 'in', operand),
+      .where(property, 'in', typeof operand === 'string' ? operand.split(',') : operand),
     $exists: (property, operand, builder) => operand ?
       builder.whereNotNull(property) :
       builder.whereNull(property),
