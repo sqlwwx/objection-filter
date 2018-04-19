@@ -6,13 +6,34 @@ var Promise = require('bluebird');
 var objection = require('objection');
 
 module.exports = {
-  testDatabaseConfigs: [{
+  testDatabaseConfigs: [
+  {
     client: 'sqlite3',
     connection: {
       filename: path.join(os.tmpdir(), 'objection_find_test.db')
     },
     useNullAsDefault: true
-  }],
+  },
+  {
+    client: 'mysql',
+    connection: {
+      host: '127.0.0.1',
+      user: 'objection',
+      password: 'P@ssw0rd',
+      database: 'objection_test'
+    },
+    pool: {
+      min: 2,
+      max: 50,
+      afterCreate: (conn, cb) => {
+        conn.query(`SET SESSION sql_mode='NO_AUTO_VALUE_ON_ZERO'`, err => {
+          cb(err, conn);
+        });
+      }
+    }
+  }]
+  // .filter(({ client }) => client === 'mysql' )
+  ,
 
   initialize: function (knexConfig) {
     var knex = Knex(knexConfig);
