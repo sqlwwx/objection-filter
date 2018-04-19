@@ -281,7 +281,7 @@ describe('complex filters', function () {
               }
             })
             .then(result => {
-              result.map(item => item.firstName).should.deep.equal([
+              result.map(item => item.firstName).sort().should.deep.equal([
                 'F00', 'F01'
               ]);
               done();
@@ -303,7 +303,7 @@ describe('complex filters', function () {
               }
             })
             .then(result => {
-              result.map(item => item.firstName).should.deep.equal([
+              result.map(item => item.firstName).sort().should.deep.equal([
                 'F00', 'F01'
               ]);
               done();
@@ -311,6 +311,7 @@ describe('complex filters', function () {
             .catch(done);
         });
 
+        // todo: order
         it('should search root model using `require $or` and operand values', done => {
           buildFilter(Person)
             .build({
@@ -325,8 +326,9 @@ describe('complex filters', function () {
               }
             })
             .then(result => {
-              result.map(item => item.firstName).should.deep.equal([
-                'F01', 'F00'
+              result.map(item => item.firstName).sort().should.deep.equal([
+                'F00',
+                'F01'
               ]);
               done();
             })
@@ -346,8 +348,9 @@ describe('complex filters', function () {
               }
             })
             .then(result => {
-              result.map(item => item.firstName).should.deep.equal([
-                'F01', 'F00'
+              result.map(item => item.firstName).sort().should.deep.equal([
+                'F00',
+                'F01'
               ]);
               done();
             })
