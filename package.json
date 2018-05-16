@@ -1,0 +1,67 @@
+{
+  "name": "objection-filter",
+  "version": "0.1.1",
+  "description": "A filter module for objection.js",
+  "main": "./dist/index.js",
+  "engines": {
+    "node": ">=9.5.0"
+  },
+  "scripts": {
+    "build": "babel src -d dist",
+    "watch": "babel -w src -d dist",
+    "pretest": "eslint src/**/*.js",
+    "test": "cross-env NODE_ENV=test nyc mocha --slow 10 --timeout 5000 --reporter spec test/**/*.js",
+    "prepublish": "npm run build",
+    "coverage": "nyc report --reporter=text-lcov | coveralls"
+  },
+  "babel": {
+    "presets": [
+      [
+        "env",
+        {
+          "targets": {
+            "node": "current"
+          }
+        }
+      ]
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tandg-digital/objection-filter"
+  },
+  "keywords": [
+    "objection",
+    "orm",
+    "filter",
+    "rest",
+    "api"
+  ],
+  "author": "jeff3yan",
+  "license": "Apache-2.0",
+  "licenses": [
+    {
+      "type": "Apache-2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0"
+    }
+  ],
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-preset-env": "^1.6.1",
+    "bluebird": "^3.5.1",
+    "chai": "^4.1.2",
+    "coveralls": "^3.0.0",
+    "cross-env": "^5.1.3",
+    "eslint": "^4.18.0",
+    "eslint-plugin-node": "^6.0.0",
+    "knex": "^0.14.4",
+    "mocha": "^5.0.1",
+    "mysql": "^2.15.0",
+    "nyc": "^11.5.0",
+    "objection": "file:../objection.js",
+    "sqlite3": "^3.1.13"
+  },
+  "dependencies": {
+    "lodash": "^4.17.5"
+  }
+}
