@@ -4,7 +4,7 @@
   "description": "A filter module for objection.js",
   "main": "./dist/index.js",
   "engines": {
-    "node": ">=9.5.0"
+    "node": ">=7.6.0"
   },
   "scripts": {
     "build": "babel src -d dist",
