@@ -1,0 +1,11 @@
+node_modules
+src
+.nyc_output
+coverage
+test
+.eslintrc.json
+yarn.lock
+doc
+.eslintrc.json
+.npmignore
+.travis.yml
