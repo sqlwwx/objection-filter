@@ -46,7 +46,7 @@
     "knex": "^0.14.4",
     "mocha": "^3.5.0",
     "nyc": "^11.1.0",
-    "objection": "github:sqlwwx/objection.js#46317bb",
+    "objection": "github:sqlwwx/objection.js#e4dff75",
     "sqlite3": "^3.1.13"
   },
   "dependencies": {

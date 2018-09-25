@@ -2863,9 +2863,9 @@ object.pick@^1.2.0, object.pick@^1.3.0:
   dependencies:
     isobject "^3.0.1"
 
-"objection@github:sqlwwx/objection.js#46317bb":
+"objection@github:sqlwwx/objection.js#e4dff75":
   version "1.3.0"
-  resolved "https://codeload.github.com/sqlwwx/objection.js/tar.gz/46317bb3c74440b99333d19be175429d7b586de1"
+  resolved "https://codeload.github.com/sqlwwx/objection.js/tar.gz/e4dff75349bd6206c142bc161cd08a6c22e869ae"
   dependencies:
     ajv "^6.2.0"
     bluebird "^3.5.1"
