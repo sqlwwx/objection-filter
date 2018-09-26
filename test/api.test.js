@@ -5,10 +5,11 @@ require('chai').should();
 const testUtils = require('./utils');
 const { buildFilter } = require('../src');
 const { raw, QueryBuilder } = require('objection');
+const assert = require('assert');
 
 const parseWhereIn = (where) => {
   Object.entries(where).forEach(([key, value]) => {
-    if (key === '$or') {
+    if (['$or', '$and'].includes(key)) {
       value.forEach(parseWhereIn)
     } else if (Array.isArray(value)) {
       if (value.length > 0) {
@@ -20,19 +21,10 @@ const parseWhereIn = (where) => {
   })
 }
 
+// https://loopback.io/doc/en/lb2/Where-filter.html
 const parseFilter = ({ limit = 100, fields, offset = 0, order = 'id', where = {}, include = {} }) => {
-  let filter = { limit, offset, order }
-  if (typeof fields === 'string') {
-    filter.fields = fields.split(',')
-      .map(field => field.trim())
-  } else if (fields) {
-    filter.fields = fields
-  }
-  if (typeof order === 'object') {
-    filter.order = Object.keys(order)
-      .map((orderKey) => `${orderKey} ${order[orderKey] ? 'asc' : 'desc' }`)
-      .join(',')
-  }
+  let filter = { limit, offset, order, fields }
+  assert(typeof filter.order === 'string', 'order should be string')
   parseWhereIn(where)
   if (typeof include === 'string') {
     filter.eager = include
@@ -160,6 +152,11 @@ describe('basic filters', function () {
             where: { age: { '$gte': 10, '$lte': 60 } }
           }).toSql().should.eql('select `Person`.* from `Person` where (`Person`.`age` >= 10 and `Person`.`age` <= 60) order by `Person`.`id` asc limit 100')
         })
+        it('$between', () => {
+          Person.find({
+            where: { age: { '$between': [10, 60] } }
+          }).toSql().should.eql('select `Person`.* from `Person` where (`Person`.`age` between 10 and 60) order by `Person`.`id` asc limit 100')
+        })
         it('$in', async () => {
           Person.find({
             where: { firstName: { '$in': ['F08', 'F07'] } }
@@ -225,7 +222,7 @@ describe('basic filters', function () {
           console.log('=======', result)
         })
         it('full feature', done => {
-          buildCustomFilter(Person, {
+          Person.find({
             limit: 5, offset: 1,
             order: 'firstName desc, movies.id',
             fields: 'id,firstName as name, movies.id,movies.name,movies.category.*',
