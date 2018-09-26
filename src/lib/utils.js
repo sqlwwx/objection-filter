@@ -28,29 +28,39 @@ const sliceRelation = (relatedProperty, delimiter = '.', rootTableName) => {
 };
 module.exports.sliceRelation = sliceRelation;
 
+const _operators = {
+  gt: '>',
+  gte: '>=',
+  lt: '<',
+  lte: '<=',
+  between: 'BETWEEN',
+  in: 'IN',
+  inq: 'IN',
+  nin: 'NOT IN',
+  neq: '!=',
+  like: 'LIKE',
+  nlike: 'NOT LIKE',
+  ilike: 'ILIKE',
+  nilike: 'NOT ILIKE',
+  regexp: 'REGEXP',
+  equals: null
+};
+
 /**
  * Create operation application utilities with some custom options
  * If options.operators is specified
  * @param {Object} options.operators
  */
 module.exports.Operations = function(options) {
-  const defaultOperators = {
-    $like: (property, operand, builder) => builder
-      .where(property, 'like', operand),
-    $lt: (property, operand, builder) => builder
-      .where(property, '<', operand),
-    $gt: (property, operand, builder) => builder
-      .where(property, '>', operand),
-    $lte: (property, operand, builder) => builder
-      .where(property, '<=', operand),
-    $gte: (property, operand, builder) => builder
-      .where(property, '>=', operand),
-    $equals: (property, operand, builder) => builder
-      .where(property, operand),
+  const defaultOperators = Object.entries(_operators).reduce((obj, [key, operator]) => {
+    obj['$' + key] = (property, operand, builder) => (operator
+      ? builder.where(property, operator, operand)
+      : builder.where(property, operand)
+    );
+    return obj;
+  }, {
     '=': (property, operand, builder) => builder
       .where(property, operand),
-    $in: (property, operand, builder) => builder
-      .where(property, 'in', operand),
     $exists: (property, operand, builder) => (operand
       ? builder.whereNotNull(property)
       : builder.whereNull(property)
@@ -95,7 +105,8 @@ module.exports.Operations = function(options) {
         iterateLogical({ $and: items }, subQueryBuilder, false);
       });
     }
-  };
+  });
+
   const { operators } = options;
 
   // Custom operators take override default operators
