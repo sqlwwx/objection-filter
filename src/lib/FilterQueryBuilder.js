@@ -299,6 +299,9 @@ const selectFields = (fields = [], builder, relationName) => {
  * @param {QueryBuilder} builder The root query builder
  */
 const applyFields = function (fields = [], builder) {
+  if (typeof fields === 'string') {
+    fields = fields.split(',').map(field => field.trim());
+  }
   const Model = builder.modelClass();
 
   // Group fields by relation e.g. ["a.b.name", "a.b.id"] => {"a.b": ["name", "id"]}
