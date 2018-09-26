@@ -364,6 +364,11 @@ var applyFields = function applyFields() {
   var fields = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : [];
   var builder = arguments[1];
 
+  if (typeof fields === 'string') {
+    fields = fields.split(',').map(function (field) {
+      return field.trim();
+    });
+  }
   var Model = builder.modelClass();
 
   // Group fields by relation e.g. ["a.b.name", "a.b.id"] => {"a.b": ["name", "id"]}
