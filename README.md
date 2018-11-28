@@ -1,18 +1,22 @@
 [![Build Status](https://travis-ci.org/tandg-digital/objection-filter.svg?branch=master)](https://travis-ci.org/tandg-digital/objection-filter) [![Coverage Status](https://coveralls.io/repos/github/tandg-digital/objection-filter/badge.svg?branch=master)](https://coveralls.io/github/tandg-digital/objection-filter?branch=master)
 
-# objection-filter
-objection-filter is a filtering module for the [objection.js](https://github.com/Vincit/objection.js) ORM. It was originally based on [objection-find](https://github.com/Vincit/objection-find), but has since moved in a different direction. It aims to fulfil some requirements that occur often during API development:
+# What is objection-filter?
+objection-filter is a filtering module for the [objection.js](https://github.com/Vincit/objection.js) ORM. It aims to fulfil some common requirements that occur often during API development:
 
-##### 1. Filtering on nested relations
+#### 1. Filtering on nested relations
 For example, if you have the models _Customer_ belongsTo _City_ belongsTo _Country_, we can query all _Customers_ where the _Country_ starts with `A`.
 
-##### 2. Eagerly loading data
+#### 2. Eagerly loading data
 Eagerly load a bunch of related data in a single query. This is useful for getting a list models e.g. _Customers_ then including all their _Orders_ in the same query.
+
+#### 3. Aggregation and reporting
+Creating quick counts and sums on a model can speed up development significantly. An example could be the _numberOfOrders_ for a _Customer_ model.
 
 # Shortcuts
 
 * [Changelog](doc/CHANGELOG.md)
 * [Recipes](doc/RECIPES.md)
+* [Aggregation](doc/AGGREGATIONS.md)
 
 # Installation
 
@@ -83,7 +87,9 @@ There are a number of built-in operations that can be applied to columns (custom
 5. **$exists** - Whether a property is not null
 6. **$or** - A top level _OR_ conditional operator
 
-##### Example
+For any operators not available (eg _ILIKE_, refer to the custom operators section below).
+
+#### Example
 
 An example of operator usage
 ```json
@@ -118,10 +124,36 @@ An example of operator usage
 }
 ```
 
+#### Custom Operators
+
+If the built in filter operators aren't quite enough, custom operators can be added. A common use case for this may be to add a `lower case LIKE` operator, which may vary in implementation depending on the SQL dialect.
+
+Example:
+
+```js
+const options = {
+  operators: {
+    $ilike: (property, operand, builder) =>
+      builder.whereRaw('?? ILIKE ?', [property, operand])
+  }
+};
+
+buildFilter(Person, null, options)
+  .build({
+    eager: {
+      $where: {
+        firstName: { $ilike: 'John' }
+      }
+    }
+  })
+```
+
+The `$ilike` operator can now be used as a new operator and will use the custom operator callback specified.
+
 # Logical Expressions
 Logical expressions can be applied to both the `eager` and `require` helpers. The `where` top level operator will eventually be deprecated and replaced by the new `eager` [object notation](https://vincit.github.io/objection.js/#relationexpression-object-notation) in objection.js.
 
-##### Examples using `$where`
+#### Examples using `$where`
 The `$where` expression is used to "filter models". Given this, related fields between models can be mixed anywhere in the logical expression.
 
 ```json
@@ -178,28 +210,49 @@ Note that in these examples, all logical expressions come _before_ the property 
 
 The `$where` will apply to the relation that immediately precedes it in the tree, in the above case "city". The `$where` will apply to relations of the eager model using dot notation. For example, you can query `Customers`, eager load their `orders` and filter those orders by the `product.name`. Note that `product.name` is a related field of the order model, not the customers model.
 
-# Custom Operators
+# Aggregations
 
-If the built in filter operators aren't quite enough, custom operators can be added. A common use case for this may be to add a `lower case string comparison` operator, which may vary in implementation depending on the SQL dialect.
+[Aggregations](doc/AGGREGATIONS.md) such as _count, sum, min, max, avg_ can be applied to the queried model.
 
-Example:
+Additionally for any aggregations, you can use them in other expressions above including:
+
+* Filtering using `$where`
+* Ordering using `order`
+
+For more detailed descriptions of each feature, refer to the [aggregations section](doc/AGGREGATIONS.md).
+
+Transform a basic aggregation like this on a `GET /Customers` endpoint:
 
 ```js
-const options = {
-  operators: {
-    $equalsLower: (property, operand, builder) =>
-      builder.whereRaw('LOWER(??) = LOWER(?)', [property, operand])
+{
+  "eager": {
+    "$aggregations": [
+        {
+          "type": "count",
+          "alias": "numberOfOrders",
+          "relation": "orders"
+        }
+    ]
   }
-};
-
-buildFilter(Person, null, options)
-  .build({
-    eager: {
-      $where: {
-        firstName: { $equalsLower: 'John' }
-      }
-    }
-  })
+}
 ```
 
-The `$equalsLower` operator can now be used as a new operator and will use the custom operator callback specified.
+...into a result set like this:
+
+```json
+[
+  {
+    "firstName": "John",
+    "lastName": "Smith",
+    "numberOfOrders": 10
+  },{
+    "firstName": "Jane",
+    "lastName": "Bright",
+    "numberOfOrders": 5
+  },{
+    "firstName": "Greg",
+    "lastName": "Parker",
+    "numberOfOrders": 7
+  }
+]
+```

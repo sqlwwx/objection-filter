@@ -50,6 +50,7 @@ const _operators = {
  * Create operation application utilities with some custom options
  * If options.operators is specified
  * @param {Object} options.operators
+ * @param {Function} options.onAggBuild A utility function to filter aggregations per model
  */
 module.exports.Operations = function(options) {
   const defaultOperators = Object.entries(_operators).reduce((obj, [key, operator]) => {
@@ -107,7 +108,7 @@ module.exports.Operations = function(options) {
     }
   });
 
-  const { operators } = options;
+  const { operators, onAggBuild } = options;
 
   // Custom operators take override default operators
   const allOperators = Object.assign({}, defaultOperators, operators);
@@ -143,5 +144,5 @@ module.exports.Operations = function(options) {
     }
   };
 
-  return { applyPropertyExpression };
+  return { applyPropertyExpression, onAggBuild };
 };
