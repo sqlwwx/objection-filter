@@ -57,13 +57,13 @@ module.exports = function () {
     this.Model = Model;
     this._builder = Model.query(trx);
 
-    // Initialize custom operators
     var _options$operators = options.operators,
-        operators = _options$operators === undefined ? {} : _options$operators;
+        operators = _options$operators === undefined ? {} : _options$operators,
+        onAggBuild = options.onAggBuild;
 
     // Initialize instance specific utilities
 
-    this.utils = Operations({ operators: operators });
+    this.utils = Operations({ operators: operators, onAggBuild: onAggBuild });
   }
 
   _createClass(FilterQueryBuilder, [{
@@ -110,6 +110,208 @@ module.exports = function () {
 }();
 
 /**
+ * Based on a relation string, get the outer most model
+ * @param {QueryBuilder} builder
+ * @param {String} relation
+ */
+var getOuterModel = function getOuterModel(builder, relation) {
+  var Model = builder.modelClass();
+  var CurrentModel = Model;
+  var _iteratorNormalCompletion = true;
+  var _didIteratorError = false;
+  var _iteratorError = undefined;
+
+  try {
+    for (var _iterator = relation.split('.')[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+      var relationName = _step.value;
+
+      var currentRelation = CurrentModel.getRelations()[relationName];
+      CurrentModel = currentRelation.relatedModelClass;
+    }
+  } catch (err) {
+    _didIteratorError = true;
+    _iteratorError = err;
+  } finally {
+    try {
+      if (!_iteratorNormalCompletion && _iterator.return) {
+        _iterator.return();
+      }
+    } finally {
+      if (_didIteratorError) {
+        throw _iteratorError;
+      }
+    }
+  }
+
+  return CurrentModel;
+};
+
+/**
+ * Return a case statement which fills nulls with zeroes
+ * @param {String} alias
+ */
+var nullToZero = function nullToZero(knex, tableAlias) {
+  var columnAlias = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 'count';
+
+  var column = tableAlias + '.' + columnAlias;
+  return knex.raw('case when ?? is null then 0 ' + 'else cast(?? as decimal) end as ??', [column, column, columnAlias]);
+};
+
+// A list of allowed aggregation functions
+var aggregationFunctions = ['count', 'sum', 'min', 'max', 'avg'];
+
+/**
+ * Build a single aggregation into a target alias on a query builder
+ * Defaults to count, but anything in aggregationFunctions can be used
+ * @param {Object} aggregation
+ * @param {QueryBuilder} builder
+ * @param {Object} utils
+ */
+var buildAggregation = function buildAggregation(aggregation, builder, utils) {
+  var Model = builder.modelClass();
+  var knex = Model.knex();
+  var relation = aggregation.relation,
+      $where = aggregation.$where,
+      _aggregation$distinct = aggregation.distinct,
+      distinct = _aggregation$distinct === undefined ? false : _aggregation$distinct,
+      _aggregation$alias = aggregation.alias,
+      columnAlias = _aggregation$alias === undefined ? 'count' : _aggregation$alias,
+      _aggregation$type = aggregation.type,
+      type = _aggregation$type === undefined ? 'count' : _aggregation$type,
+      field = aggregation.field;
+  var onAggBuild = utils.onAggBuild;
+
+  // Do some initial validation
+
+  if (!aggregationFunctions.includes(type)) {
+    throw new Error('Invalid type [' + type + '] for aggregation');
+  }
+  if (type !== 'count' && !field) {
+    throw new Error('Must specify "field" with [' + type + '] aggregation');
+  }
+
+  var baseIdColumn = Model.tableName + '.' + Model.idColumn;
+
+  // When joining the filter query, the base left-joined table is aliased
+  // as the full relation name joined by the : character
+  var relationNames = relation.split('.');
+  var fullOuterRelation = relationNames.join(':');
+
+  // Filtering starts using the outermost model as a base
+  var OuterModel = getOuterModel(builder, relation);
+
+  var idColumns = _.isArray(OuterModel.idColumn) ? OuterModel.idColumn : [OuterModel.idColumn];
+  var fullIdColumns = idColumns.map(function (idColumn) {
+    return fullOuterRelation + '.' + idColumn;
+  });
+
+  // Create the subquery for the aggregation with the base model as a starting point
+  var distinctTag = distinct ? 'distinct ' : '';
+  var aggregationQuery = Model.query().select(baseIdColumn).select(knex.raw(type + '(' + distinctTag + '??) as ??', [fullOuterRelation + '.' + (field || OuterModel.idColumn), columnAlias])).leftJoinRelation(relation);
+
+  // Apply filters to models on the aggregation path
+  if (onAggBuild) {
+    var currentModel = Model;
+    var relationStack = [];
+    var _iteratorNormalCompletion2 = true;
+    var _didIteratorError2 = false;
+    var _iteratorError2 = undefined;
+
+    try {
+      var _loop = function _loop() {
+        var relationName = _step2.value;
+
+        relationStack.push(relationName);
+        var relatedModelClass = currentModel.getRelations()[relationName].relatedModelClass;
+
+        var query = onAggBuild(relatedModelClass);
+        var fullyQualifiedRelation = relationStack.join(':');
+        if (query) {
+          var aggModelAlias = fullyQualifiedRelation + '_agg';
+          aggregationQuery.innerJoin(query.as(aggModelAlias), function () {
+            this.on(aggModelAlias + '.' + relatedModelClass.idColumn, '=', fullyQualifiedRelation + '.' + relatedModelClass.idColumn);
+          });
+        }
+        currentModel = relatedModelClass;
+      };
+
+      for (var _iterator2 = relation.split('.')[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
+        _loop();
+      }
+    } catch (err) {
+      _didIteratorError2 = true;
+      _iteratorError2 = err;
+    } finally {
+      try {
+        if (!_iteratorNormalCompletion2 && _iterator2.return) {
+          _iterator2.return();
+        }
+      } finally {
+        if (_didIteratorError2) {
+          throw _iteratorError2;
+        }
+      }
+    }
+  }
+
+  // Apply the filtering using the outer model as a starting point
+  var filterQuery = OuterModel.query();
+  applyRequire($where, filterQuery, utils);
+  var filterQueryAlias = 'filter_query';
+  aggregationQuery.innerJoin(filterQuery.as(filterQueryAlias), function () {
+    var _this = this;
+
+    fullIdColumns.forEach(function (fullIdColumn, index) {
+      _this.on(fullIdColumn, '=', filterQueryAlias + '.' + idColumns[index]);
+    });
+  });
+
+  aggregationQuery.groupBy(baseIdColumn);
+
+  return aggregationQuery;
+};
+
+var applyAggregations = function applyAggregations() {
+  var aggregations = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : [];
+  var builder = arguments[1];
+  var utils = arguments[2];
+
+  if (aggregations.length === 0) return;
+
+  var Model = builder.modelClass();
+  var knex = Model.knex();
+  var aggAlias = function aggAlias(i) {
+    return 'agg_' + i;
+  };
+  var idColumns = _.isArray(Model.idColumn) ? Model.idColumn : [Model.idColumn];
+  var fullIdColumns = idColumns.map(function (id) {
+    return Model.tableName + '.' + id;
+  });
+
+  var aggregationQueries = aggregations.map(function (aggregation) {
+    return buildAggregation(aggregation, builder, utils);
+  });
+
+  // Create a replicated subquery equivalent to the base model + aggregations
+  var fullQuery = Model.query().select(Model.tableName + '.*');
+
+  // For each aggregation query, select the aggregation then join onto the full query
+  aggregationQueries.forEach(function (query, i) {
+    var nullToZeroStatement = nullToZero(knex, aggAlias(i), aggregations[i].alias);
+    fullQuery.select(nullToZeroStatement).leftJoin(query.as(aggAlias(i)), function () {
+      var _this2 = this;
+
+      fullIdColumns.forEach(function (fullIdColumn, j) {
+        _this2.on(fullIdColumn, '=', aggAlias(i) + '.' + idColumns[j]);
+      });
+    });
+  });
+
+  // Finally, build the base query
+  builder.from(fullQuery.as(Model.tableName));
+};
+
+/**
  * Apply an object notation eager object with scope based filtering
  * @param {Object} expression
  * @param {QueryBuilder} builder
@@ -129,6 +331,12 @@ var applyEagerFilter = function applyEagerFilter() {
     var filterCopy = Object.assign({}, expression.$where);
     applyRequire(filterCopy, builder, utils);
     delete expression.$where;
+  }
+
+  // Apply an aggregation set on the root model
+  if (expression.$aggregations) {
+    applyAggregations(expression.$aggregations, builder, utils);
+    delete expression.$aggregations;
   }
 
   // Walk the eager tree
@@ -246,10 +454,10 @@ var applyRequire = function applyRequire() {
 
     var filterQueryAlias = 'filter_query';
     builder.innerJoin(filterQuery.as(filterQueryAlias), function () {
-      var _this = this;
+      var _this3 = this;
 
       fullIdColumns.forEach(function (fullIdColumn, index) {
-        _this.on(fullIdColumn, '=', filterQueryAlias + '.' + idColumns[index]);
+        _this3.on(fullIdColumn, '=', filterQueryAlias + '.' + idColumns[index]);
       });
     });
   }
@@ -346,6 +554,17 @@ var selectFields = function selectFields() {
   var relationName = arguments[2];
 
   if (fields.length === 0) return;
+
+  var _builder$modelClass$k = builder.modelClass().knex(),
+      raw = _builder$modelClass$k.raw;
+  // HACK: sqlite incorrect column alias when selecting 1 column
+  // TODO: investigate sqlite column aliasing on eager models
+
+
+  if (fields.length === 1 && !relationName) {
+    var field = fields[0].split('.')[1];
+    return builder.select(raw('?? as ??', [fields[0], field]));
+  }
   if (!relationName) return builder.select(fields);
 
   builder.modifyEager(relationName, function (eagerQueryBuilder) {

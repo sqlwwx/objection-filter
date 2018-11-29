@@ -62,6 +62,7 @@ var _operators = {
  * Create operation application utilities with some custom options
  * If options.operators is specified
  * @param {Object} options.operators
+ * @param {Function} options.onAggBuild A utility function to filter aggregations per model
  */
 module.exports.Operations = function (options) {
   var defaultOperators = Object.entries(_operators).reduce(function (obj, _ref) {
@@ -122,7 +123,8 @@ module.exports.Operations = function (options) {
     }
   });
 
-  var operators = options.operators;
+  var operators = options.operators,
+      onAggBuild = options.onAggBuild;
 
   // Custom operators take override default operators
 
@@ -153,5 +155,5 @@ module.exports.Operations = function (options) {
     }
   };
 
-  return { applyPropertyExpression: applyPropertyExpression };
+  return { applyPropertyExpression: applyPropertyExpression, onAggBuild: onAggBuild };
 };
