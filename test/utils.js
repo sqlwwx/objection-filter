@@ -246,6 +246,15 @@ function createModels(knex) {
           }
         },
 
+        children: {
+          relation: objection.HasManyRelation,
+          modelClass: Person,
+          join: {
+            from: 'Person.id',
+            to: 'Person.pid'
+          }
+        },
+
         pets: {
           relation: objection.HasManyRelation,
           modelClass: Animal,
