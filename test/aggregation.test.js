@@ -106,6 +106,30 @@ describe('aggregation', function () {
             .catch(done);
         });
 
+        it('should count using 2-level hasMany', async () => {
+          const result = await buildFilter(Person)
+            .build({
+              eager: {
+                $aggregations: [{
+                  type: 'count',
+                  alias: 'childrenCount',
+                  relation: 'children'
+                }, {
+                  type: 'count',
+                  alias: 'grandsonCount',
+                  relation: 'children.children'
+                }]
+              }
+            })
+          result.length.should.equal(10)
+          result[7].childrenCount.should.equal(1)
+          result[7].grandsonCount.should.equal(1)
+          result[8].childrenCount.should.equal(1)
+          result[8].grandsonCount.should.equal(0)
+          result[9].childrenCount.should.equal(0)
+          result[9].grandsonCount.should.equal(0)
+        })
+
         it('should count using 2-level manyToMany', done => {
           buildFilter(Person)
             .build({
