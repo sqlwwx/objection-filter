@@ -190,7 +190,9 @@ var buildAggregation = function buildAggregation(aggregation, builder, utils) {
     throw new Error('Must specify "field" with [' + type + '] aggregation');
   }
 
-  var baseIdColumn = Model.tableName + '.' + Model.idColumn;
+  var baseIdColumn = typeof Model.idColumn === 'string' ? Model.tableName + '.' + Model.idColumn : Model.idColumn.map(function (idColumn) {
+    return Model.tableName + '.' + idColumn;
+  });
 
   // When joining the filter query, the base left-joined table is aliased
   // as the full relation name joined by the : character
