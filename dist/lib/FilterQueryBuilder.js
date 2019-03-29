@@ -209,7 +209,7 @@ var buildAggregation = function buildAggregation(aggregation, builder, utils) {
 
   // Create the subquery for the aggregation with the base model as a starting point
   var distinctTag = distinct ? 'distinct ' : '';
-  var aggregationQuery = Model.query().select(baseIdColumn).select(knex.raw(type + '(' + distinctTag + '??) as ??', [fullOuterRelation + '.' + (field || OuterModel.idColumn), columnAlias])).leftJoinRelation(relation);
+  var aggregationQuery = Model.query().select(baseIdColumn).select(knex.raw(type + '(' + distinctTag + '??) as ??', [field ? fullOuterRelation + '.' + field : fullIdColumns[0], columnAlias])).leftJoinRelation(relation);
 
   // Apply filters to models on the aggregation path
   if (onAggBuild) {
@@ -273,11 +273,7 @@ var buildAggregation = function buildAggregation(aggregation, builder, utils) {
   return aggregationQuery;
 };
 
-var applyAggregations = function applyAggregations() {
-  var aggregations = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : [];
-  var builder = arguments[1];
-  var utils = arguments[2];
-
+var applyAggregations = function applyAggregations(aggregations, builder, utils) {
   if (aggregations.length === 0) return;
 
   var Model = builder.modelClass();
@@ -320,12 +316,7 @@ var applyAggregations = function applyAggregations() {
  * @param {Array<string>} path An array of the current relation
  * @param {Object} utils
  */
-var applyEagerFilter = function applyEagerFilter() {
-  var expression = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-  var builder = arguments[1];
-  var path = arguments[2];
-  var utils = arguments[3];
-
+var applyEagerFilter = function applyEagerFilter(expression, builder, path, utils) {
   debug('applyEagerFilter(', { expression: expression, path: path }, ')');
 
   // Apply a where on the root model
@@ -452,7 +443,7 @@ var applyRequire = function applyRequire() {
 
     // If there were related properties, join onto the filter
     var joinRelation = createRelationExpression(propertiesSet);
-    if (joinRelation) filterQuery.joinRelation(joinRelation);
+    filterQuery.joinRelation(joinRelation);
 
     var filterQueryAlias = 'filter_query';
     builder.innerJoin(filterQuery.as(filterQueryAlias), function () {
@@ -550,11 +541,7 @@ module.exports.applyOrder = applyOrder;
  * @param {Builder} builder An instance of a knex builder
  * @param {Array<String>} fields A list of fields to select
   */
-var selectFields = function selectFields() {
-  var fields = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : [];
-  var builder = arguments[1];
-  var relationName = arguments[2];
-
+var selectFields = function selectFields(fields, builder, relationName) {
   if (fields.length === 0) return;
 
   var _builder$modelClass$k = builder.modelClass().knex(),

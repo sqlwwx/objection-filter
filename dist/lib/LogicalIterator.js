@@ -32,8 +32,7 @@ var arrayize = function arrayize(objectOrArray) {
  * @param {Object} expression
  * @param {Function} test A function to determine whether to include the property
  */
-var getPropertiesFromExpression = function getPropertiesFromExpression() {
-  var expression = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+var getPropertiesFromExpression = function getPropertiesFromExpression(expression) {
   var test = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : function () {
     return true;
   };

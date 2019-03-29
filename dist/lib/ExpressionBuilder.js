@@ -33,9 +33,7 @@ var toRelationSubExpression = function toRelationSubExpression(tree, relationNam
  * expression = '[schema.[schemaAttributes,organization]]'
  * @param {Array<String>} fields A list of fields
  */
-var createRelationExpression = function createRelationExpression() {
-  var fields = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : [];
-
+var createRelationExpression = function createRelationExpression(fields) {
   // For each field, set some arbitrarily deep property
   var tree = {};
   fields.forEach(function (field) {
