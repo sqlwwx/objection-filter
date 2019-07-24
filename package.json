@@ -1,6 +1,6 @@
 {
   "name": "objection-filter",
-  "version": "2.2.0",
+  "version": "2.3.1",
   "description": "A filter module for objection.js",
   "main": "./dist/index.js",
   "engines": {
@@ -47,7 +47,7 @@
     "mocha": "^3.5.0",
     "mysql": "^2.16.0",
     "nyc": "^11.1.0",
-    "objection": "github:sqlwwx/objection.js#e4dff75",
+    "objection": "github:sqlwwx/objection.js#83091bc6",
     "pg": "^7.4.3",
     "sqlite3": "^4.0.4"
   },
